@@ -4,16 +4,17 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 from transformers import pipeline
 import PyPDF2
+import config
 
 # Load embedding model
-embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+embedding_model = SentenceTransformer(config.EMBEDDING_MODEL)
 
 # Initialize ChromaDB with persistent storage
-chroma_client = chromadb.PersistentClient(path="./vector_store")
-collection = chroma_client.get_or_create_collection(name="pdf_embeddings")
+chroma_client = chromadb.PersistentClient(path=config.CHROMA_CLIENT_PATH)
+collection = chroma_client.get_or_create_collection(name=config.COLLECTION_NAME)
 
 # Load the TinyLlama model for text generation
-qa_pipeline = pipeline("text-generation", model="TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+qa_pipeline = pipeline("text-generation", model=config.TEXT_GEN_MODEL)
 
 def extract_text_from_pdf(pdf_path):
     """Extract text from a PDF file."""
@@ -42,8 +43,10 @@ def store_pdf_in_vector_db(pdf_paths):
     """Stores text from PDFs as embeddings in ChromaDB using upsert to avoid duplication."""
     for pdf_path in pdf_paths:
         pdf_hash = get_pdf_hash(pdf_path)
+        #print("Hash_of_the_PDF_file :",pdf_hash)
         # Extract text from the PDF
         text = extract_text_from_pdf(pdf_path)
+        #print("Extracted_text_from_pdf_files  :",text)
         # Generate embedding
         embedding = embedding_model.encode([text])[0]
 
@@ -53,11 +56,15 @@ def store_pdf_in_vector_db(pdf_paths):
             embeddings=[embedding.tolist()],
             documents=[text]
         )
-        print(f"Stored content from '{os.path.basename(pdf_path)}' in ChromaDB!")
+        print(f"Stored content from '{os.path.basename(pdf_path)}' in ChromaDB!") 
+
+    """else:
+        print("No PDFs found to store in the vector database.")"""
 
 def retrieve_first_n_lines(n=100):
     """Retrieve the first n lines of the stored PDF from the vector database."""
-    result = collection.get()
+    result = collection.get() 
+    #print ("Result from vector database:", result)
     if result and "documents" in result and result["documents"]:
         full_text = result["documents"][0]  # Get the first stored document
         lines = full_text.strip().split("\n")
@@ -82,8 +89,9 @@ def generate_questions(text):
     # Print the generated questions
     print(questions[0]['generated_text'])
 
-if __name__ == "_main_":
-    pdf_files = ["html_ref.pdf"]  # Specify the PDF files
-    store_pdf_in_vector_db(pdf_files)
-    retrieved_text = retrieve_first_n_lines(1000)
-    generate_questions(retrieved_text)  
+if __name__ == "__main__":
+    retrieve_pdf_path = "D:/Data_Aces/Codes/interview_assis/data/retrieve_from_pdf/Wolpaw.pdf"  # Specify the PDF file
+    #print("PDF file path:", retrieve_pdf_path)
+    store_pdf_in_vector_db([retrieve_pdf_path])  # Pass as a list
+    retrieved_text = retrieve_first_n_lines(100)
+    # generate_questions(retrieved_text)

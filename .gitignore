@@ -1,2 +1,4 @@
 .qodo
 venv
+data
+vector_storage
